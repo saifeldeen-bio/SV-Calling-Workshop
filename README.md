@@ -19,7 +19,7 @@
 
 Follow these steps to enable WSL and install Ubuntu:
 
-### 1.1 Enable Windows Features
+### 1.1 Enable Windows Features and WSL
 In the search box, search for `Turn WIndows features on or off`
 
 <img width="1071" height="1044" alt="image" src="https://github.com/user-attachments/assets/faa2a8a0-a58e-4b7a-953c-7be2df3fd9df" />
@@ -30,13 +30,23 @@ In the pop-up menu, enable the following:
 
 <img width="520" height="464" alt="image" src="https://github.com/user-attachments/assets/6df25474-cb36-41f8-bf4e-ca171c63dd84" />
 
-Click OK, and restart when he asks to restart your PC
+Click OK, and restart when he asks to restart your PC. After restarting, type in the search box again `command prompt` and open it.
+In the command prompt terminal, type `wsl --status`, you will see that WSL has been installed successfully
 
-Open **PowerShell as Administrator** and run:
+<img width="1483" height="762" alt="image" src="https://github.com/user-attachments/assets/8e799e1f-b7fc-4740-b19f-6dbad08ea0e9" />
+
+Now you have to update WSL to get the latest version before we install Ubuntu. 
+
+In the **Command Prompt Terminal** run:
 
 ```powershell
-wsl --install
+wsl --update
 ```
+
+<img width="1483" height="762" alt="image" src="https://github.com/user-attachments/assets/3d7bc981-4f5c-4bb1-990e-425c74d6d3a5" />
+
+
+
 
 This installs WSL2 and defaults to Ubuntu. Reboot if prompted.
 
