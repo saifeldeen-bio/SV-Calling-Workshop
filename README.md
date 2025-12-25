@@ -45,17 +45,18 @@ wsl --update
 
 <img width="1483" height="762" alt="image" src="https://github.com/user-attachments/assets/3d7bc981-4f5c-4bb1-990e-425c74d6d3a5" />
 
+After installation, go to `Microsoft Store` and search for `Ubuntu` and Get it!!
 
-
-
-This installs WSL2 and defaults to Ubuntu. Reboot if prompted.
+<img width="1920" height="1140" alt="image" src="https://github.com/user-attachments/assets/7f88bf3b-f2e9-4dbd-9a3a-524bd7c055e6" />
 
 ### 1.2 Launch Ubuntu
 
-After installation:
+Once installed, open it from and set your username and password. Don't worry if you didn't see anything typed during the password step, it's a hidden process.
 
-* Open **Ubuntu** from the Start Menu.
-* Set your username/password when prompted.
+<img width="1483" height="762" alt="image" src="https://github.com/user-attachments/assets/fcbaf3f6-50cd-41bc-8e66-542cb21a1f47" />
+
+#### Congratulations!!! Now you have Ubuntu Installed as subsystem on Windows!!
+you can open Ubuntu Terminal from windows menu
 
 ---
 
@@ -63,14 +64,23 @@ After installation:
 
 We use **Miniconda** to manage bioinformatics tools.
 
-### 2.1 Download & install Miniconda
+### 2.1 Download & install Miniconda (source: conda website)
 
 ```bash
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
-# Follow prompts, then restart the shell
+mkdir -p ~/miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+rm ~/miniconda3/miniconda.sh
 ```
+After installing, close and reopen your terminal application or refresh it by running the following command:
+```bash
+source ~/miniconda3/bin/activate
+```
+Then, initialize conda on all available shells by running the following command:
 
+```bash
+conda init --all
+```
 ### 2.2 Configure Channels (including BioConda)
 
 ```bash
@@ -80,21 +90,24 @@ conda config --add channels bioconda
 conda config --set channel_priority strict
 ```
 
----
-
 ## 3. 🧰 Install Key Tools
+Now install essential tools for SV calling workflow. Create a new environment by runing 
 
-Now install essential tools for quality control, mapping, CNV calling, and visualization.
+```bash
+conda create -n sv_env -y
+conda activate sv_env
+
+```
+
+Accept all terms and conditions
 
 ### 🧪 3.1 FastQC (Quality Control)
 
 ```bash
-conda create -n qc_env fastqc -y
-conda activate qc_env
+conda install fastqc -y
 fastqc --version
 ```
-
-👉 FastQC lets you assess read quality. ([YouTube][1])
+👉 FastQC lets you assess read quality. 
 
 ---
 
@@ -105,7 +118,7 @@ conda install multiqc -y
 multiqc --version
 ```
 
-👉 MultiQC summarizes FastQC outputs across samples. ([University Wiki Service][2])
+👉 MultiQC summarizes FastQC outputs across samples.
 
 ---
 
@@ -115,30 +128,27 @@ multiqc --version
 conda install bwa -y
 bwa
 ```
-
 ---
-
-### 🧠 3.4 DeepVariant (Variant Calling)
-
-DeepVariant requires additional setup with TensorFlow and a reference genome.
+### 🔍 3.4 SRA Toolkit (Download public FASTQ)
 
 ```bash
-conda install -c conda-forge -c bioconda deepvariant -y
+conda install samtoools -y
 ```
-
-⚠️ You will need a human reference (e.g., GRCh38) and a GPU for faster runs (optional).
-
 ---
 
-### 🔍 3.5 SRA Toolkit (Download public FASTQ)
+
+### 🧠 3.5 Manta (Structural Variant Calling)
+
+Manta requires additional setup, it's recommended to install it in a separate enironment
 
 ```bash
-conda install sra-tools -y
+conda deactivate
+conda create -n manta_env -y
+conda activate manta_env
+conda install manta -y
 ```
-
-Use `fasterq-dump SRRXXXXX` to get FASTQ from SRA. ([NCBI][3])
-
 ---
+
 
 ### 🧬 IGV (Genome Visualization — GUI)
 
