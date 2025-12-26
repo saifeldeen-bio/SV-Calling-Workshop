@@ -7,9 +7,10 @@
 3. **Install Key Tools**
    * `FastQC`
    * `MultiQC`
+   * `Trimmomatic`
    * `BWA`
    * `Samtools`
-   * `DeepVariant`
+   * `Manta`
    * `IGV`
 4. **Download Datasets**
 5. **SV Workflow**
@@ -95,31 +96,28 @@ Now install essential tools for SV calling workflow. Create a new environment by
 
 ```bash
 conda create -n sv_env -y
-conda activate sv_env
 
 ```
 
 Accept all terms and conditions
 
-### 🧪 3.1 FastQC (Quality Control)
+### 🧪 3.1 FastQC & MultiQC (Quality Control)
 
 ```bash
-conda install fastqc -y
-fastqc --version
+conda create -n qc_env \
+  -c conda-forge -c bioconda \
+  python=3.10 fastqc multiqc \
+  -y
 ```
-👉 FastQC lets you assess read quality. 
 
 ---
 
-### 📊 3.2 MultiQC (aggregate report)
+### 📊 3.2 Trimmomatic
 
 ```bash
-conda install multiqc -y
-multiqc --version
+conda activate sv_env
+conda install trimmomatic
 ```
-
-👉 MultiQC summarizes FastQC outputs across samples.
-
 ---
 
 ### 🧬 3.3 BWA (Alignment)
@@ -129,13 +127,15 @@ conda install bwa -y
 bwa
 ```
 ---
-### 🔍 3.4 SRA Toolkit (Download public FASTQ)
+### 🔍 3.4 Samtools
 
 ```bash
-conda install samtoools -y
+conda create -n align \
+  -c conda-forge -c bioconda \
+  python=3.10 \
+  samtools -y
 ```
 ---
-
 
 ### 🧠 3.5 Manta (Structural Variant Calling)
 
@@ -152,87 +152,88 @@ conda install manta -y
 
 ### 🧬 IGV (Genome Visualization — GUI)
 
-IGV is a **graphical tool**. It’s easiest to install from their website:
-
-➡️ [https://software.broadinstitute.org/software/igv/](https://software.broadinstitute.org/software/igv/)
-Download the latest Linux version (extract and run).
-
+```bash
+conda deactivate
+conda create -n igv_gui -c conda-forge -c bioconda igv openjdk=21 -y
+conda activate igv_gui
+```
 ---
 
-## 4. 📥 Download Sample FASTQ Datasets
+## 4. 📥 Download Datasets
 
-To practice CNV and NGS analysis, you can use **public data**:
+To easly practice SV analysis, we can use **small sample (e.g. microbiom sample)** to test and run our workflow faster, then we can explor a real human samples, from previous case studies, with IGV after getting the BAM files and VCFs to see the SVs
 
-### 🔹 1) SRA / ENA — Human sequencing data
+### 🔹 1) Fastq data
 
-The **Sequence Read Archive (SRA)** and **European Nucleotide Archive (ENA)** host real sequencing runs in FASTQ format. ([Wikipedia][4])
-
-Example collections include:
-
-* **1000 Genomes Project** — Whole genomes (healthy individuals). ([Wikipedia][5])
-* Custom SRA studies with CNV phenotypes: search for “cancer exome CNV” or similar in SRA.
-
-#### Download FASTQ
-
-Inside WSL:
+Inside your terminal create a diretory called `sv_analysis` and go inside it and create another directory called `raw_reads` to store your fastq files:
 
 ```bash
-# Example Run accession
-fasterq-dump SRR12345678
+mkdir -p sv_analysis/raw_reads
+cd sv_analysis/raw_reads
+wget https://zenodo.org/record/3960260/files/004-2_1.fastq.gz
+wget https://zenodo.org/record/3960260/files/004-2_2.fastq.gz
 ```
 
-You should get paired files like:
-
-```
-SRR12345678_1.fastq
-SRR12345678_2.fastq
-```
-
----
-
-### 🔹 2) Small test datasets
-
-For initial testing, small fastq samples are available on GitHub:
-
-➡️ **hartwigmedical/testdata** (FASTQ and small datasets) ([GitHub][6])
+### 🔹 2) Reference Genome
 
 ```bash
-git clone https://github.com/hartwigmedical/testdata.git
+cd ../
+mkdir ref/
+cd ref/
+wget https://zenodo.org/record/3960260/files/MTB_ancestor_reference.fasta
 ```
-
-These contain example FASTQ files (not necessarily disease vs normal with CNVs but great for tool testing).
-
 ---
 
-## 5. 🧠 Example Workflow
+## 5. 🧠 SV Workflow
 
 ### 5.1 Quality Control
 
 ```bash
-fastqc *.fastq
-multiqc .
+cd ../
+mkdir QC
+fastqc raw_reads/*.gz -o QC/
+multiqc QC/. -o QC/
+```
+
+### 5.2 Trimmomatic
+```bash
+mkdir -p trimmed_reads/Paired trimmed_reads/Unpaired
+    trimmomatic PE -phred33 raw_reads/004-2_1.fastq.gz  raw_reads/004-2_2.fastq.gz \
+    trimmed_reads/Paired/004-2_1_paired.fastq trimmed_reads/Unpaired/004-2_1_unpaired.fastq \
+    trimmed_reads/Paired/004-2_2_paired.fastq trimmed_reads/Unpaired/004-2_2_unpaired.fastq \
+    SLIDINGWINDOW:4:25 MINLEN:36
 ```
 
 ### 5.2 Alignment with BWA
 
 ```bash
-bwa index ref.fa
-bwa mem ref.fa sample_1.fastq sample_2.fastq > sample.sam
+mkdir alignment
+bwa index ref/MTB_ancestor_reference.fasta
+bwa mem ref/MTB_ancestor_reference.fasta trimmed_reads/Paired/004-2_1_paired.fastq trimmed_reads/Paired/004-2_2_paired.fastq > alignment/004-2.sam
 ```
 
 ### 5.3 Convert SAM → BAM and sort
 
 ```bash
-samtools view -b sample.sam | samtools sort -o sample.sorted.bam
-samtools index sample.sorted.bam
+conda activate align
+samtools faidx ref/MTB_ancestor_reference.fasta
+samtools view -b alignment/004-2.sam | samtools sort -o alignment/004-2.sorted.bam
+samtools index alignment/004-2.sorted.bam
 ```
 
-### 5.4 Variant Calling (DeepVariant)
+### 5.4 Variant Calling (Manta)
 
 ```bash
-deepvariant --model_type=WGS --ref=ref.fa \
-  --reads=sample.sorted.bam \
-  --output_vcf=sample.vcf.gz
+mkdir SVCalling
+# Step 1: Generate the configuration files
+configManta.py \
+            --bam alignment/004-2.sorted.bam \
+            --referenceFasta ref/MTB_ancestor_reference.fasta \
+            --runDir SVCalling/004-2_manta
+
+# Step 2: Run the Manta pipeline
+        cd SVCalling/004-2_manta
+        ./runWorkflow.py -m local
 ```
 
 ---
@@ -244,32 +245,5 @@ deepvariant --model_type=WGS --ref=ref.fa \
 * Load your **reference genome**
 * Load **BAM** and **VCF**
 * Inspect regions with **suspected CNVs** (deletions/duplications)
-
----
-
-## 7. 💡 Tips & Next Steps
-
-✅ Use **CNV callers** such as **GATK CNV, CNVkit, XHMM**, or others after alignment (not covered here).
-✅ Get **paired tumor-normal** datasets from SRA to benchmark CNV detection.
-✅ For exome CNV: consider **target regions BED files** and tools optimized for exomes.
-
----
-
-## 8. 📚 References & Resources
-
-* FastQC basic guide and install details. ([YouTube][1])
-* MultiQC overview for summarizing reports. ([University Wiki Service][2])
-* SRA Toolkit instructions for raw sequence download. ([NCBI][3])
-* Public sequence repositories (SRA/ENA). ([Wikipedia][4])
-
----
-
-Let me know if you want a **script to automate these steps** (e.g., a Bash installer) or a **workflow with specific CNV callers** included!
-
-[1]: https://www.youtube.com/watch?v=5nth7o_-f0Q&utm_source=chatgpt.com "Fastqc Tutorial | Linux Install and Usage (Commandline & GUI)"
-[2]: https://cloud.wikis.utexas.edu/wiki/display/bioiteam/MultiQC%2B-%2BfastQC%2Bsummary%2Btool%2B--%2BGVA2022?utm_source=chatgpt.com "Installing multiqc - University Wiki Service"
-[3]: https://www.ncbi.nlm.nih.gov/sra/docs/sradownload/?utm_source=chatgpt.com "Download SRA sequences from Entrez search results - NCBI - NIH"
-[4]: https://en.wikipedia.org/wiki/Sequence_Read_Archive?utm_source=chatgpt.com "Sequence Read Archive"
-[5]: https://en.wikipedia.org/wiki/1000_Genomes_Project?utm_source=chatgpt.com "1000 Genomes Project"
-[6]: https://github.com/hartwigmedical/testdata?utm_source=chatgpt.com "hartwigmedical/testdata: Small datasets for testing purpose ... - GitHub"
-
+  
+## 7. 🔬 Clinical Interpretation (Franklin)
